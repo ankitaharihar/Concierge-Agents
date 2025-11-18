@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "title": "DBMS assignment",
+    "deadline": "2025-11-25",
+    "estimated_hours": 3.0,
+    "priority": "high",
+    "status": "pending"
+  },
+  {
+    "id": 2,
+    "title": "DBMS assignment",
+    "deadline": "2025-11-25",
+    "estimated_hours": 3.0,
+    "priority": "high",
+    "status": "pending"
+  },
+  {
+    "id": 3,
+    "title": "cns assignment",
+    "deadline": "2025-11-19",
+    "estimated_hours": 1.0,
+    "priority": "high",
+    "status": "pending"
+  }
+]
