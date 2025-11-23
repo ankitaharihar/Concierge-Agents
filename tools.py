@@ -112,3 +112,65 @@ def generate_plan(daily_hours: float = 3.0, num_days: int = 7) -> Dict[str, Any]
             remaining -= slot_hours
 
     return plan
+def get_today_view(daily_hours: float = 3.0) -> Dict[str, Any]:
+    """
+    Build a 'today view' dashboard:
+    - tasks due today
+    - a few upcoming tasks
+    - a simple plan for today based on available hours
+    """
+    tasks = load_tasks()
+    today_date = datetime.today().date()
+    today_str = str(today_date)
+
+    # Normalize and sort by priority + deadline
+    priority_order = {"high": 0, "medium": 1, "low": 2}
+
+    def parse_deadline(d: str):
+        try:
+            return datetime.strptime(d, "%Y-%m-%d").date()
+        except ValueError:
+            # invalid date goes far in the future
+            return datetime.max.date()
+
+    # Tasks not done
+    active_tasks = [t for t in tasks if t["status"] != "done"]
+
+    # Tasks due today
+    due_today = [
+        t for t in active_tasks
+        if parse_deadline(t["deadline"]) == today_date
+    ]
+    due_today.sort(
+        key=lambda t: (
+            priority_order.get(t["priority"], 1),
+            parse_deadline(t["deadline"]),
+        )
+    )
+
+    # Upcoming tasks (after today)
+    upcoming = [
+        t for t in active_tasks
+        if parse_deadline(t["deadline"]) > today_date
+    ]
+    upcoming.sort(
+        key=lambda t: (
+            parse_deadline(t["deadline"]),
+            priority_order.get(t["priority"], 1),
+        )
+    )
+    # Limit upcoming list to avoid huge output
+    upcoming = upcoming[:5]
+
+    # Use existing generate_plan to build a 1-day plan
+    full_plan = generate_plan(daily_hours=daily_hours, num_days=1)
+    today_plan = full_plan.get(today_str, [])
+
+    return {
+        "date": today_str,
+        "daily_hours": daily_hours,
+        "due_today": due_today,
+        "upcoming": upcoming,
+        "plan": today_plan,
+    }
+
