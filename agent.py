@@ -5,7 +5,8 @@ from typing import List, Dict, Any
 from dotenv import load_dotenv
 from google import genai  # ✅ new SDK
 
-from tools import create_task, list_tasks, update_task_status, generate_plan
+from tools import create_task, list_tasks, update_task_status, generate_plan, get_today_view
+
 
 # Load API key from .env
 load_dotenv()
