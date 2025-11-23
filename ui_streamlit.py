@@ -1,4 +1,4 @@
-import streamlit as st
+import streamlit as st  # type: ignore[reportMissingImports]
 from dotenv import load_dotenv
 import os
 
@@ -32,4 +32,3 @@ with st.form("input_form", clear_on_submit=True):
         except Exception as e:
             assistant_reply = f"(error calling agent) {e}"
         st.session_state.history.append(("assistant", assistant_reply))
-        st.experimental_rerun()
