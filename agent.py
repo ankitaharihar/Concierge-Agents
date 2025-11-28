@@ -1,22 +1,116 @@
 import os
 import json
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Generator, Optional
 
 from dotenv import load_dotenv
-from google import genai  # ✅ new SDK
+
+# Try to import optional GenAI SDK. Keep the module import-safe for environments
+# that don't have the SDK or an API key (so tests and editor linting don't fail).
+try:
+    from google import genai  # type: ignore
+    GENAI_AVAILABLE = True
+except Exception:
+    genai = None  # type: ignore
+    GENAI_AVAILABLE = False
 
 from tools import create_task, list_tasks, update_task_status, generate_plan, get_today_view
 
-
-# Load API key from .env
+# Load API key from .env (if present)
 load_dotenv()
 API_KEY = os.getenv("GOOGLE_API_KEY")
+MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.0-flash")
 
-if not API_KEY:
-    raise RuntimeError("GOOGLE_API_KEY not found in .env file")
+# Create a GenAI client only if SDK and API key are available
+if GENAI_AVAILABLE and API_KEY:
+    try:
+        client = genai.Client(api_key=API_KEY)
+    except Exception:
+        client = None
+else:
+    client = None
 
-# ✅ Create a GenAI client (new SDK)
-client = genai.Client(api_key=API_KEY)
+
+# Simple in-process LRU cache for recent prompts
+from collections import OrderedDict
+import threading
+import time
+
+
+class LRUCache:
+    def __init__(self, capacity: int = 128):
+        self.capacity = capacity
+        self.data = OrderedDict()
+
+    def get(self, key):
+        v = self.data.get(key)
+        if v is not None:
+            # move to end as most-recently used
+            self.data.move_to_end(key)
+        return v
+
+    def set(self, key, value):
+        if key in self.data:
+            self.data.move_to_end(key)
+        self.data[key] = value
+        if len(self.data) > self.capacity:
+            self.data.popitem(last=False)
+
+
+# Lightweight TTL cache for recent agent replies (in-memory). This is
+# best-effort and improves latency for repeated prompts. For multi-instance
+# deployments replace with Redis.
+class TTLCache:
+    def __init__(self, ttl: int = 300):
+        self.ttl = ttl
+        self.store = {}  # key -> (value, expiry)
+        self.lock = threading.Lock()
+
+    def get(self, key):
+        with self.lock:
+            v = self.store.get(key)
+            if not v:
+                return None
+            value, exp = v
+            if time.time() > exp:
+                del self.store[key]
+                return None
+            return value
+
+    def set(self, key, value, ttl: Optional[int] = None):
+        with self.lock:
+            exp = time.time() + (ttl if ttl is not None else self.ttl)
+            self.store[key] = (value, exp)
+
+
+RESPONSE_CACHE = TTLCache(ttl=300)
+
+
+_CACHE = LRUCache(capacity=256)
+
+
+def _history_to_key(user_message: str, history: List[Dict[str, str]]) -> str:
+    # create a compact cache key (hash) from user_message + last N history entries
+    import hashlib
+
+    # only include the last 6 turns to keep key size bounded
+    last = history[-6:] if history else []
+    s = user_message + "||" + "::".join(f"{t.get('user','')}->{t.get('assistant','')}" for t in last)
+    return hashlib.sha256(s.encode('utf-8')).hexdigest()
+
+
+def _truncate_history_by_chars(history: List[Dict[str, str]], max_chars: int = 4000) -> List[Dict[str, str]]:
+    # Simple heuristic: keep removing the oldest turn until total chars below max_chars
+    if not history:
+        return history
+    total = sum(len(t.get('user','')) + len(t.get('assistant','')) for t in history)
+    if total <= max_chars:
+        return history
+    # drop oldest until under limit
+    out = history.copy()
+    while out and total > max_chars:
+        oldest = out.pop(0)
+        total -= (len(oldest.get('user','')) + len(oldest.get('assistant','')))
+    return out
 
 
 SYSTEM_PROMPT = """
@@ -75,11 +169,18 @@ def _call_llm(user_message: str, history: List[Dict[str, str]]) -> Dict[str, Any
     for turn in history:
         conversation += f"User: {turn['user']}\nAssistant: {turn['assistant']}\n"
 
+    # Truncate long history to avoid model input limits
+    history_trunc = _truncate_history_by_chars(history, max_chars=4000)
+    conversation = ""
+    for turn in history_trunc:
+        conversation += f"User: {turn['user']}\nAssistant: {turn['assistant']}\n"
+
     prompt = SYSTEM_PROMPT + "\n\n" + conversation + f"User: {user_message}\nAssistant:"
 
     try:
+        # Use configured model name
         response = client.models.generate_content(
-            model="gemini-2.0-flash",   # light & fast model
+            model=MODEL_NAME,
             contents=prompt,
         )
         raw = getattr(response, "text", None) or str(response)
@@ -131,6 +232,12 @@ def handle_user_message(user_message: str, history: List[Dict[str, str]]) -> str
     - Executes tools based on 'action'
     - Returns assistant_message (augmented with tool results if needed)
     """
+    # First check fast TTL response cache (by hashed history+message)
+    key = _history_to_key(user_message, history)
+    cached = RESPONSE_CACHE.get(key)
+    if cached is not None:
+        return cached
+
     llm_output = _call_llm(user_message, history)
     action = llm_output.get("action", "chat_only")
     params = llm_output.get("params", {}) or {}
@@ -186,3 +293,29 @@ def handle_user_message(user_message: str, history: List[Dict[str, str]]) -> str
                 assistant_message += f"  - {s['title']} ({s['hours']} hours) [Task ID {s['task_id']}]\n"
 
     return assistant_message
+
+
+async def handle_user_message_async(user_message: str, history: List[Dict[str, str]]) -> str:
+    """Async wrapper for running the sync handler in a thread."""
+    import asyncio
+
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(None, handle_user_message, user_message, history)
+    return result
+
+
+def stream_handle_user_message(user_message: str, history: List[Dict[str, str]], chunk_size: int = 80) -> Generator[str, None, None]:
+    """Call the handler synchronously and yield chunks of the reply for streaming UI.
+
+    This is a helper if the server wants to stream partial tokens. It returns a generator of strings.
+    """
+    full = handle_user_message(user_message, history)
+    # also cache the full reply
+    try:
+        key = _history_to_key(user_message, history)
+        _CACHE.set(key, full)
+    except Exception:
+        pass
+
+    for i in range(0, len(full), chunk_size):
+        yield full[i:i+chunk_size]

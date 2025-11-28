@@ -8,7 +8,8 @@ def create_task(
     title: str,
     deadline: str,
     estimated_hours: float,
-    priority: str = "medium"
+    priority: str = "medium",
+    owner: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Create a new task and store it.
@@ -24,7 +25,8 @@ def create_task(
         "deadline": deadline,          # store as string
         "estimated_hours": float(estimated_hours),
         "priority": priority.lower(),  # normalize
-        "status": "pending"            # pending | in_progress | done
+        "status": "pending",           # pending | in_progress | done
+        "owner": owner,
     }
 
     tasks.append(new_task)
