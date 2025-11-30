@@ -1,41 +1,64 @@
+# agent.py - ChronoKen agent core (clean, robust, safe for missing SDK)
 import os
 import json
-from typing import List, Dict, Any, Generator, Optional
-
-from dotenv import load_dotenv
-
-# Try to import optional GenAI SDK. Keep the module import-safe for environments
-# that don't have the SDK or an API key (so tests and editor linting don't fail).
-try:
-    from google import genai  # type: ignore
-    GENAI_AVAILABLE = True
-except Exception:
-    genai = None  # type: ignore
-    GENAI_AVAILABLE = False
-
-from tools import create_task, list_tasks, update_task_status, generate_plan, get_today_view
-
-# Load API key from .env (if present)
-load_dotenv()
-API_KEY = os.getenv("GOOGLE_API_KEY")
-MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.0-flash")
-
-# Create a GenAI client only if SDK and API key are available
-if GENAI_AVAILABLE and API_KEY:
-    try:
-        client = genai.Client(api_key=API_KEY)
-    except Exception:
-        client = None
-else:
-    client = None
-
-
-# Simple in-process LRU cache for recent prompts
-from collections import OrderedDict
 import threading
 import time
+from collections import OrderedDict
+from pathlib import Path
+from typing import List, Dict, Any, Generator, Optional
+
+# Load .env explicitly from project root so environment is available at import time
+from dotenv import load_dotenv
+
+_project_root = Path(__file__).resolve().parent
+_env_path = _project_root / ".env"
+if _env_path.exists():
+    raw = _env_path.read_bytes()
+    if raw.startswith(b"\xef\xbb\xbf"):
+        _env_path.write_bytes(raw.lstrip(b"\xef\xbb\xbf"))
+    load_dotenv(_env_path, override=True)
+else:
+    # still try loading from environment
+    load_dotenv(override=True)
+
+print("AGENT.PY loaded GOOGLE_API_KEY prefix:", (os.getenv("GOOGLE_API_KEY") or "None")[:12] + "...")
+print("AGENT: env_path =", _env_path)
+
+# Import correct GenAI SDK (google-generativeai). Make import safe if not installed.
+GENAI_AVAILABLE = False
+genai = None
+try:
+    import google.generativeai as genai  # correct SDK
+    GENAI_AVAILABLE = True
+except Exception:
+    genai = None
+    GENAI_AVAILABLE = False
+
+# Tools (local)
+from tools import create_task, list_tasks, update_task_status, generate_plan, get_today_view
+
+# Read config from env
+API_KEY = os.getenv("GOOGLE_API_KEY")
+MODEL_NAME = os.getenv("MODEL_NAME") or "models/gemini-2.5-pro"
+
+# Configure SDK if possible
+model = None
+if GENAI_AVAILABLE and API_KEY:
+    try:
+        genai.configure(api_key=API_KEY)
+        model = genai.GenerativeModel(MODEL_NAME)
+        print("AGENT: GenAI initialized with model:", MODEL_NAME)
+    except Exception as e:
+        print("AGENT: GenAI configure/instantiate failed:", type(e).__name__, e)
+        model = None
+else:
+    if not GENAI_AVAILABLE:
+        print("AGENT: google.generativeai SDK not installed.")
+    if not API_KEY:
+        print("AGENT: GOOGLE_API_KEY not set; GenAI disabled.")
 
 
+# Small caches used to reduce repeated LLM calls
 class LRUCache:
     def __init__(self, capacity: int = 128):
         self.capacity = capacity
@@ -44,7 +67,6 @@ class LRUCache:
     def get(self, key):
         v = self.data.get(key)
         if v is not None:
-            # move to end as most-recently used
             self.data.move_to_end(key)
         return v
 
@@ -56,13 +78,10 @@ class LRUCache:
             self.data.popitem(last=False)
 
 
-# Lightweight TTL cache for recent agent replies (in-memory). This is
-# best-effort and improves latency for repeated prompts. For multi-instance
-# deployments replace with Redis.
 class TTLCache:
     def __init__(self, ttl: int = 300):
         self.ttl = ttl
-        self.store = {}  # key -> (value, expiry)
+        self.store = {}
         self.lock = threading.Lock()
 
     def get(self, key):
@@ -83,33 +102,26 @@ class TTLCache:
 
 
 RESPONSE_CACHE = TTLCache(ttl=300)
-
-
 _CACHE = LRUCache(capacity=256)
 
 
 def _history_to_key(user_message: str, history: List[Dict[str, str]]) -> str:
-    # create a compact cache key (hash) from user_message + last N history entries
     import hashlib
-
-    # only include the last 6 turns to keep key size bounded
     last = history[-6:] if history else []
     s = user_message + "||" + "::".join(f"{t.get('user','')}->{t.get('assistant','')}" for t in last)
-    return hashlib.sha256(s.encode('utf-8')).hexdigest()
+    return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
 
 def _truncate_history_by_chars(history: List[Dict[str, str]], max_chars: int = 4000) -> List[Dict[str, str]]:
-    # Simple heuristic: keep removing the oldest turn until total chars below max_chars
     if not history:
         return history
-    total = sum(len(t.get('user','')) + len(t.get('assistant','')) for t in history)
+    total = sum(len(t.get("user", "")) + len(t.get("assistant", "")) for t in history)
     if total <= max_chars:
         return history
-    # drop oldest until under limit
     out = history.copy()
     while out and total > max_chars:
         oldest = out.pop(0)
-        total -= (len(oldest.get('user','')) + len(oldest.get('assistant','')))
+        total -= (len(oldest.get("user", "")) + len(oldest.get("assistant", "")))
     return out
 
 
@@ -161,63 +173,60 @@ IMPORTANT:
 
 
 def _call_llm(user_message: str, history: List[Dict[str, str]]) -> Dict[str, Any]:
-    """
-    Send the conversation to the LLM and parse the JSON response.
-    history: list of {"user": "...", "assistant": "..."} for previous turns
-    """
-    conversation = ""
-    for turn in history:
-        conversation += f"User: {turn['user']}\nAssistant: {turn['assistant']}\n"
-
-    # Truncate long history to avoid model input limits
+    # prepare prompt
     history_trunc = _truncate_history_by_chars(history, max_chars=4000)
-    conversation = ""
+    conv = ""
     for turn in history_trunc:
-        conversation += f"User: {turn['user']}\nAssistant: {turn['assistant']}\n"
+        conv += f"User: {turn['user']}\nAssistant: {turn['assistant']}\n"
+    prompt = SYSTEM_PROMPT + "\n\n" + conv + f"User: {user_message}\nAssistant:"
 
-    prompt = SYSTEM_PROMPT + "\n\n" + conversation + f"User: {user_message}\nAssistant:"
-
-    try:
-        # Use configured model name
-        response = client.models.generate_content(
-            model=MODEL_NAME,
-            contents=prompt,
-        )
-        raw = getattr(response, "text", None) or str(response)
-        raw = raw.strip()
-    except Exception as e:
-        # 🔴 If LLM fails (429/quota, network, etc.), fall back gracefully
+    # If GenAI not available, return helpful fallback
+    if model is None:
+        reasons = []
+        if not GENAI_AVAILABLE:
+            reasons.append("GenAI SDK not installed (python package 'google.generativeai')")
+        if not API_KEY:
+            reasons.append("GOOGLE_API_KEY not set in .env or environment")
+        reason_text = "; ".join(reasons) if reasons else "GenAI client not available"
         return {
             "action": "chat_only",
             "params": {},
-            "assistant_message": f"""LLM request failed: {e}
-
-You can still use me with explicit commands like:
-- add task: title=DBMS assignment, deadline=2025-11-25, hours=3, priority=high
-- list tasks
-- plan: daily_hours=2 num_days=3
-""",
+            "assistant_message": (
+                f"LLM unavailable: {reason_text}\n\n"
+                "You can still use me with explicit commands like:\n"
+                "- add task: title=DBMS assignment, deadline=2025-11-25, hours=3, priority=high\n"
+                "- list tasks\n"
+                "- plan: daily_hours=2 num_days=3\n"
+            ),
         }
 
-    # In case the model wraps JSON in ```json ... ``` fences
+    try:
+        # Use the high-level model object (works with google-generativeai)
+        resp = model.generate_content(prompt)
+        raw = getattr(resp, "text", None) or str(resp)
+        raw = raw.strip()
+    except Exception as e:
+        return {
+            "action": "chat_only",
+            "params": {},
+            "assistant_message": f"LLM request failed: {e}\n\nYou can still use explicit commands (add/list/plan).",
+        }
+
+    # If model returns fenced JSON, remove fences
     if raw.startswith("```"):
         raw = raw.strip("`")
         if raw.lower().startswith("json"):
             raw = raw[4:].strip()
 
-    # Try to extract JSON object
+    # Try to extract JSON blob
     start = raw.find("{")
     end = raw.rfind("}")
     json_str = raw[start:end + 1] if start != -1 and end != -1 else ""
 
     try:
-        data = json.loads(json_str)
+        data = json.loads(json_str) if json_str else {"action": "chat_only", "params": {}, "assistant_message": raw}
     except (json.JSONDecodeError, ValueError):
-        data = {
-            "action": "chat_only",
-            "params": {},
-            "assistant_message": raw,
-        }
+        data = {"action": "chat_only", "params": {}, "assistant_message": raw}
 
     data.setdefault("action", "chat_only")
     data.setdefault("params", {})
@@ -226,13 +235,6 @@ You can still use me with explicit commands like:
 
 
 def handle_user_message(user_message: str, history: List[Dict[str, str]]) -> str:
-    """
-    Main entry point for the app.
-    - Calls LLM
-    - Executes tools based on 'action'
-    - Returns assistant_message (augmented with tool results if needed)
-    """
-    # First check fast TTL response cache (by hashed history+message)
     key = _history_to_key(user_message, history)
     cached = RESPONSE_CACHE.get(key)
     if cached is not None:
@@ -243,7 +245,6 @@ def handle_user_message(user_message: str, history: List[Dict[str, str]]) -> str
     params = llm_output.get("params", {}) or {}
     assistant_message = llm_output.get("assistant_message", "")
 
-    # Tool execution
     if action == "create_task":
         task = create_task(
             title=params.get("title", "Untitled task"),
@@ -292,30 +293,29 @@ def handle_user_message(user_message: str, history: List[Dict[str, str]]) -> str
             for s in slots:
                 assistant_message += f"  - {s['title']} ({s['hours']} hours) [Task ID {s['task_id']}]\n"
 
+    # cache reply
+    try:
+        RESPONSE_CACHE.set(key, assistant_message)
+    except Exception:
+        pass
+
     return assistant_message
 
 
+# Async & streaming helpers
 async def handle_user_message_async(user_message: str, history: List[Dict[str, str]]) -> str:
-    """Async wrapper for running the sync handler in a thread."""
     import asyncio
-
     loop = asyncio.get_running_loop()
     result = await loop.run_in_executor(None, handle_user_message, user_message, history)
     return result
 
 
 def stream_handle_user_message(user_message: str, history: List[Dict[str, str]], chunk_size: int = 80) -> Generator[str, None, None]:
-    """Call the handler synchronously and yield chunks of the reply for streaming UI.
-
-    This is a helper if the server wants to stream partial tokens. It returns a generator of strings.
-    """
     full = handle_user_message(user_message, history)
-    # also cache the full reply
     try:
         key = _history_to_key(user_message, history)
         _CACHE.set(key, full)
     except Exception:
         pass
-
     for i in range(0, len(full), chunk_size):
-        yield full[i:i+chunk_size]
+        yield full[i:i + chunk_size]

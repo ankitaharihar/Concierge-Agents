@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ChronoKen — Login / Sign up</title>
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="auth.css">
+</head>
+<body>
+  <main class="auth-page">
+    <!-- Large typographic background -->
+    <div class="bg-text">CHRONOKEN</div>
+
+    <!-- Floating hero image -->
+    <div class="hero-wrap">
+      <div class="hero-3d-wrapper">
+        <img id="heroImg" src="Img/aaaaaaaaaaaa.png" alt="ChronoKen" />
+      </div>
+    </div>
+
+    <!-- Auth card (flippable) -->
+    <section class="auth-card-wrap">
+      <div class="auth-card" id="authCard" data-state="login">
+        <!-- Login side -->
+        <form class="form-panel panel-login" id="loginForm" autocomplete="on">
+          <div class="brandline">
+            <div class="logo">CK</div>
+            <div>
+              <h2>ChronoKen</h2>
+              <div class="tag">Master your time</div>
+            </div>
+          </div>
+
+          <h3>Welcome back</h3>
+          <p class="muted">Sign in to access your missions & time-slices.</p>
+
+          <div class="field">
+            <input id="loginEmail" type="email" required value="user@gmail.com" />
+            <label for="loginEmail">Email</label>
+          </div>
+
+          <div class="field">
+            <input id="loginPass" type="password" required minlength="6" />
+            <label for="loginPass">Password</label>
+          </div>
+
+          <div class="row between">
+            <label class="remember"><input id="remember" type="checkbox"> Remember me</label>
+            <a href="#" class="muted small">Forgot?</a>
+          </div>
+
+          <button type="submit" class="btn primary">Enter ChronoKen</button>
+
+          <div class="alt">
+            <span>New to ChronoKen?</span>
+            <button type="button" id="showSignup" class="btn ghost">Create Account</button>
+          </div>
+        </form>
+
+        <!-- Signup side -->
+        <form class="form-panel panel-signup" id="signupForm" autocomplete="on">
+          <div class="brandline">
+            <div class="logo">CK</div>
+            <div>
+              <h2>ChronoKen</h2>
+              <div class="tag">Forge your future</div>
+            </div>
+          </div>
+
+          <h3>Create account</h3>
+          <p class="muted">Sign up and let ChronoKen slice your time into perfect sessions.</p>
+
+          <div class="field">
+            <input id="signupName" type="text" required />
+            <label for="signupName">Full name</label>
+          </div>
+
+          <div class="field">
+            <input id="signupEmail" type="email" required />
+            <label for="signupEmail">Email</label>
+          </div>
+
+          <div class="field">
+            <input id="signupPass" type="password" required minlength="6" />
+            <label for="signupPass">Password</label>
+          </div>
+
+          <div class="row between">
+            <label class="remember"><input id="agreeTos" type="checkbox" required> I agree to the Terms</label>
+          </div>
+
+          <button type="submit" class="btn primary">Summon ChronoKen</button>
+
+          <div class="alt">
+            <span>Already member?</span>
+            <button type="button" id="showLogin" class="btn ghost">Sign in</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- small footer note -->
+      <p class="auth-foot">ChronoKen • The blade that shapes your time</p>
+    </section>
+  </main>
+
+  <script src="auth.js"></script>
+</body>
+</html>

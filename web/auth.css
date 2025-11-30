@@ -1,0 +1,86 @@
+/* ChronoKen Auth - Animated Login & Signup */
+:root{
+  --bg:#e30b0b; /* bold red hero */
+  --card: rgba(0,0,0,0.25);
+  --muted: rgba(255,255,255,0.85);
+  --glass: rgba(255,255,255,0.03);
+  --accent1:#111827;
+  --accent2:#fff;
+  --radius:16px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto;color:var(--accent2);background:var(--bg);overflow:hidden}
+.auth-page{position:relative;height:100vh;display:flex;align-items:center;justify-content:center;padding:40px}
+
+/* Huge background text */
+.bg-text{
+  position:absolute;left:-40px;top:20px;font-family:Merriweather,serif;font-size:200px;color:rgba(0,0,0,0.05);letter-spacing:8px;
+  transform:rotate(-3deg);pointer-events:none;user-select:none;
+}
+
+/* hero image floating and 3D tilt wrapper */
+.hero-wrap{position:absolute;right:6%;top:6%;width:520px;height:720px;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.hero-3d-wrapper{perspective:1500px; width:100%; height:100%}
+.hero-3d-wrapper img{
+  width:100%; height:auto; max-height:92vh; display:block; transform-style:preserve-3d;
+  transition:transform .18s ease-out, filter .3s; will-change:transform; user-select:none;
+  animation:floatY 4.5s ease-in-out infinite;
+  filter:drop-shadow(0 30px 80px rgba(0,0,0,0.45));
+}
+
+/* floating keyframes */
+@keyframes floatY {
+  0% { transform: translateY(0) }
+  50% { transform: translateY(-18px) }
+  100% { transform: translateY(0) }
+}
+
+/* center card */
+.auth-card-wrap{position:relative;z-index:6;max-width:920px;width:100%;display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin-left:6%}
+.auth-card{width:520px;border-radius:18px;padding:0;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.06));backdrop-filter:blur(6px);border:1px solid rgba(0,0,0,0.12);box-shadow:0 30px 80px rgba(0,0,0,0.6);overflow:hidden;transition:transform .8s cubic-bezier(.2,.9,.2,1)}
+.auth-card[data-state="signup"]{transform:translateX(12px) rotateY(-6deg)}
+
+/* form panels layout (stacked, show/hide by transform) */
+.form-panel{padding:28px 28px 20px;display:flex;flex-direction:column;gap:12px;min-height:420px;transition:opacity .35s ease, transform .45s ease}
+.panel-login{transform-origin:left;backface-visibility:hidden}
+.panel-signup{position:absolute;inset:0;opacity:0;transform:translateY(12px) scale(.98);pointer-events:none}
+.auth-card[data-state="signup"] .panel-signup{opacity:1;pointer-events:auto;transform:translateY(0) scale(1)}
+.auth-card[data-state="signup"] .panel-login{opacity:0;pointer-events:none;transform:translateY(-8px) scale(.98)}
+
+/* brand */
+.brandline{display:flex;gap:12px;align-items:center}
+.logo{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#111827,#7c5cff);display:flex;align-items:center;justify-content:center;font-weight:800;color:white;font-family:Merriweather,serif}
+.brandline h2{margin:0;font-size:18px}
+.tag{font-size:12px;color:rgba(255,255,255,0.75)}
+
+/* headings */
+h3{margin:0;font-family:Merriweather,serif}
+.muted{color:rgba(255,255,255,0.82);font-size:13px}
+
+/* fields */
+.field{position:relative;margin-top:6px}
+.field input{width:100%;padding:14px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.06);background:rgba(0,0,0,0.25);color:var(--accent2);outline:none;font-size:15px;transition:box-shadow .18s, transform .18s}
+.field label{position:absolute;left:14px;top:12px;font-size:13px;color:rgba(255,255,255,0.78);pointer-events:none;transition:transform .18s, font-size .18s}
+.field input:focus{box-shadow:0 6px 22px rgba(0,0,0,0.6);transform:translateY(-2px)}
+.field input:focus + label, .field input:not(:placeholder-shown) + label{transform:translateY(-20px);font-size:12px;opacity:.95}
+
+/* form micro layout */
+.row{display:flex;align-items:center;gap:12px}
+.between{justify-content:space-between}
+.remember input{margin-right:8px}
+.btn{cursor:pointer;padding:12px 18px;border-radius:999px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:var(--accent2);font-weight:600}
+.btn.primary{background:linear-gradient(90deg,#111827,#7c5cff);color:white;border:0;box-shadow:0 10px 30px rgba(0,0,0,0.5);transition:transform .16s}
+.btn.primary:active{transform:translateY(2px)}
+.btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.12)}
+
+/* alt / footer */
+.alt{display:flex;align-items:center;gap:12px;margin-top:8px}
+.auth-foot{font-size:13px;color:rgba(255,255,255,0.75);margin-left:6px}
+
+/* small screens */
+@media (max-width:880px){
+  .hero-wrap{display:none}
+  .bg-text{font-size:120px;left:-10px}
+  .auth-card{width:92%}
+  .auth-card-wrap{margin-left:0;align-items:center}
+}

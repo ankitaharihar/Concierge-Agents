@@ -2,7 +2,7 @@ import os
 import json
 import asyncio
 from pathlib import Path
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Response
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Response, BackgroundTasks
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -151,6 +151,115 @@ async def api_chat(req: Request):
         return {'reply': reply}
     except Exception as e:
         return JSONResponse({'error': str(e)}, status_code=500)
+
+
+# --- SendGrid welcome email endpoint ---
+def _sendgrid_send(to_email: str, subject: str, html_body: str):
+    api_key = os.environ.get('SENDGRID_API_KEY')
+    if not api_key:
+        raise RuntimeError('SENDGRID_API_KEY not set')
+    from requests import post
+    from json import dumps
+    from_email = os.environ.get('EMAIL_FROM', 'no-reply@chronoken.com')
+    payload = {
+        'personalizations': [{'to': [{'email': to_email}]}],
+        'from': {'email': from_email},
+        'subject': subject,
+        'content': [{'type': 'text/html', 'value': html_body}]
+    }
+    headers = {
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': 'application/json'
+    }
+    resp = post('https://api.sendgrid.com/v3/mail/send', headers=headers, data=dumps(payload), timeout=10)
+    if resp.status_code >= 400:
+        raise RuntimeError(f'SendGrid error {resp.status_code}: {resp.text}')
+
+
+def _smtp_send(to_email: str, subject: str, html_body: str):
+    """Send via SMTP. Uses env vars SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_TLS.
+    If none configured, defaults to localhost:1025 (debugging server).
+    """
+    smtp_host = os.environ.get('SMTP_HOST', 'localhost')
+    smtp_port = int(os.environ.get('SMTP_PORT', '1025'))
+    smtp_user = os.environ.get('SMTP_USER')
+    smtp_pass = os.environ.get('SMTP_PASS')
+    use_tls = os.environ.get('SMTP_TLS', 'false').lower() in ('1','true','yes')
+
+    from email.message import EmailMessage
+    import smtplib
+
+    msg = EmailMessage()
+    from_email = os.environ.get('EMAIL_FROM', 'no-reply@chronoken.com')
+    msg['Subject'] = subject
+    msg['From'] = from_email
+    msg['To'] = to_email
+    msg.set_content(html_body, subtype='html')
+
+    if smtp_user and smtp_pass:
+        server = smtplib.SMTP(smtp_host, smtp_port, timeout=10)
+        try:
+            if use_tls:
+                server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.send_message(msg)
+        finally:
+            server.quit()
+    else:
+        # No auth configured — attempt to send to a local debug SMTP server
+        server = smtplib.SMTP(smtp_host, smtp_port, timeout=10)
+        try:
+            server.send_message(msg)
+        finally:
+            server.quit()
+
+
+@app.post('/api/send_welcome')
+async def api_send_welcome(req: Request, background_tasks: BackgroundTasks):
+    data = await req.json()
+    email = data.get('email')
+    name = data.get('name') or ''
+    if not email:
+        return JSONResponse({'error': 'email required'}, status_code=400)
+    subject = 'Thanks for visiting ChronoKen'
+    html = f"""
+    <div style='font-family: Inter, system-ui, Arial; color:#111;'>
+      <h3>Thanks for visiting ChronoKen{', '+name if name else ''}!</h3>
+      <p>We're glad you stopped by. This is a demo welcome email — replace with your production content.</p>
+      <p>— ChronoKen team</p>
+    </div>
+    """
+    try:
+        # Prefer SendGrid if configured, otherwise use SMTP fallback (useful for local dev)
+        if os.environ.get('SENDGRID_API_KEY'):
+            background_tasks.add_task(_sendgrid_send, email, subject, html)
+        else:
+            background_tasks.add_task(_smtp_send, email, subject, html)
+        return {'ok': True}
+    except Exception as e:
+        return JSONResponse({'error': str(e)}, status_code=500)
+
+
+    @app.post('/api/generate_timetable')
+    async def api_generate_timetable(req: Request):
+        """Generate a simple timetable/plan using the server-side planner (tools.generate_plan).
+        Accepts JSON: {daily_hours: number, num_days: int}
+        """
+        data = await req.json()
+        try:
+            daily_hours = float(data.get('daily_hours', 3.0))
+        except Exception:
+            daily_hours = 3.0
+        try:
+            num_days = int(data.get('num_days', 7))
+        except Exception:
+            num_days = 7
+
+        try:
+            plan = generate_plan(daily_hours=daily_hours, num_days=num_days)
+            return {'ok': True, 'plan': plan}
+        except Exception as e:
+            return JSONResponse({'error': str(e)}, status_code=500)
 
 # Simple WebSocket chat endpoint that replies with a single reply per incoming message
 @app.websocket('/ws/chat')

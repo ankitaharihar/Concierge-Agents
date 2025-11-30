@@ -1,0 +1,244 @@
+/* ChronoKen — Calm Dashboard Theme (replace your styles.css) */
+
+/* Color system (calmer, less saturated) */
+:root{
+  --bg-100: #071025;  /* deep navy */
+  --bg-90:  #0b1220;
+  --card:   #0f1724;  /* card surface */
+  --card-2: #0c1524;
+  --muted:  #9aa6c0;
+  --text:   #e6eefc;
+  --accent-start: #6b5cff; /* softer violet */
+  --accent-end:   #4cc2d8; /* soft aqua */
+  --glass:  rgba(255,255,255,0.03);
+  --radius: 12px;
+  --shadow-subtle: 0 6px 18px rgba(2,8,23,0.45);
+}
+
+/* Light theme fallback */
+html[data-theme="light"]{
+  --bg-100:#f3f6fb; --bg-90:#ffffff; --card:#ffffff; --card-2:#f8fafc;
+  --muted:#6b7280; --text:#071025; --glass:rgba(0,0,0,0.04);
+  --accent-start:#4f46e5; --accent-end:#06b6d4;
+  --shadow-subtle:0 6px 18px rgba(10,20,40,0.06);
+}
+
+/* Base */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto;
+  background: linear-gradient(180deg, var(--bg-100) 0%, var(--bg-90) 60%);
+  color:var(--text);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  line-height:1.5;
+  font-size:15px;
+}
+
+/* App layout */
+.app{display:flex;height:100vh;gap:20px}
+
+/* Sidebar */
+.sidebar{
+  width:220px;
+  padding:22px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.02));
+  border-right:1px solid rgba(255,255,255,0.02);
+  display:flex;flex-direction:column;justify-content:space-between;
+  transition:width .25s ease;
+}
+.brand{display:flex;gap:12px;align-items:center;margin-bottom:8px}
+.logo{width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,var(--accent-start),var(--accent-end));display:flex;align-items:center;justify-content:center;font-weight:800;color:white}
+.brand-text .title{font-weight:700;font-size:16px}
+.brand-text .sub{font-size:12px;color:var(--muted)}
+
+/* Menu */
+.menu{display:flex;flex-direction:column;gap:8px;margin-top:18px}
+.menu-item{
+  display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;
+  background:transparent;border:0;color:var(--muted);cursor:pointer;font-weight:600;text-align:left;
+  transition:background .18s, color .18s, transform .12s;
+}
+.menu-item .icon{width:28px;text-align:center}
+.menu-item:hover{background:rgba(255,255,255,0.02);color:var(--text);transform:translateX(4px)}
+.menu-item.active{background:linear-gradient(90deg, rgba(107,92,255,0.10), rgba(76,194,216,0.06));color:var(--text)}
+
+/* Sidebar bottom */
+.sidebar-bottom{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+.profile{display:flex;gap:12px;align-items:center}
+.avatar{width:44px;height:44px;border-radius:8px}
+.name{font-weight:700}
+.muted{color:var(--muted);font-size:13px}
+
+/* Buttons */
+.btn{
+  border:0;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:700;background:transparent;color:var(--text);
+  box-shadow:none;border:1px solid rgba(255,255,255,0.02)
+}
+.btn.primary{
+  background:linear-gradient(90deg,var(--accent-start),var(--accent-end));
+  color:white;border:0;box-shadow:0 8px 28px rgba(51,33,102,0.12);
+  transition:transform .12s, box-shadow .12s;
+}
+.btn.primary:active{transform:translateY(1px)}
+.btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)}
+
+/* Main content */
+.main{flex:1;display:flex;flex-direction:column;padding:22px;overflow:auto}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}
+.search input{
+  padding:12px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);
+  background:rgba(255,255,255,0.01);color:var(--text);min-width:420px;
+  outline:none;font-size:15px;
+  transition:box-shadow .12s, transform .12s;
+}
+.search input:focus{box-shadow:0 6px 18px rgba(0,0,0,0.5);transform:translateY(-2px)}
+
+/* Grid layout */
+.grid{display:grid;grid-template-columns:1fr 420px;gap:20px}
+.col{display:flex;flex-direction:column;gap:16px}
+
+/* Card base (calmer) */
+.card{
+  background:linear-gradient(180deg,var(--card), var(--card-2));
+  padding:18px;border-radius:14px;border:1px solid var(--glass);
+  box-shadow:var(--shadow-subtle);
+  transition:opacity .32s ease, transform .32s ease, max-height .38s ease, margin .24s ease, padding .24s ease;
+  will-change: opacity, transform, max-height;
+}
+.card-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.card-head h3{margin:0;font-size:18px}
+.small{font-size:13px;color:var(--muted)}
+
+/* Today snapshot */
+.today-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.today-tasks ul, .missions-list, .notes-list, #allMissions, #plansContainer{list-style:none;padding:0;margin:0}
+.today-tasks li{
+  padding:12px;border-radius:10px;margin-bottom:10px;background:rgba(255,255,255,0.01);display:flex;justify-content:space-between;align-items:center;
+  border:1px solid rgba(255,255,255,0.02)
+}
+.today-tasks h4{margin:0 0 8px 0;font-size:15px}
+
+/* Missions panel */
+.missions-actions{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.missions-actions input, .missions-actions select{
+  padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:var(--text)
+}
+
+/* Mission list items */
+.missions-list li{
+  padding:12px;border-radius:10px;margin-bottom:10px;background:linear-gradient(90deg, rgba(255,255,255,0.01), transparent);
+  display:flex;justify-content:space-between;align-items:center;border:1px solid rgba(255,255,255,0.02)
+}
+.mission-meta{display:flex;flex-direction:column}
+.priority-high{color:#ff8373;font-weight:700}
+.priority-medium{color:#ffd57a;font-weight:700}
+.priority-low{color:#9be7c4;font-weight:700}
+
+/* Focus timer */
+.focus-card{display:flex;flex-direction:column;align-items:center;gap:12px;padding:18px}
+.timer{font-family:Merriweather,serif;font-size:26px;background:rgba(255,255,255,0.02);padding:12px 18px;border-radius:10px}
+.timer.large{font-size:44px;padding:24px 32px}
+
+/* Notes */
+.notes textarea{width:100%;height:84px;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:var(--text)}
+.notes-list li{padding:10px;border-radius:8px;margin-top:8px;background:rgba(255,255,255,0.01)}
+
+/* Calendar placeholder */
+.calendar-placeholder{padding:18px;border-radius:10px;background:rgba(255,255,255,0.01);min-height:140px;display:flex;flex-direction:column;gap:8px}
+
+/* Analytics */
+.chart-row{display:flex;gap:12px}
+.mini-chart{flex:1}
+.bar-wrap{background:rgba(255,255,255,0.02);height:16px;border-radius:8px;overflow:hidden}
+.bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent-start),var(--accent-end));transition:width 0.6s}
+
+/* Chat */
+.chat-card{display:flex;flex-direction:column;gap:12px}
+.chat-window{background:rgba(255,255,255,0.01);padding:12px;border-radius:10px;min-height:240px;max-height:420px;overflow:auto}
+.chat-msg{padding:10px;border-radius:8px;margin-bottom:8px;max-width:78%}
+.chat-msg.user{background:rgba(255,255,255,0.03);text-align:right;margin-left:auto}
+.chat-msg.ken{background:linear-gradient(90deg, rgba(107,92,255,0.06), rgba(76,194,216,0.03));margin-right:auto}
+
+/* responsive */
+@media (max-width:1200px){
+  .grid{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .search input{min-width:220px}
+}
+
+/* Compact / animated view modifiers: fade/slide cards instead of using display:none so transitions animate */
+.grid.show-today-only{grid-template-columns:1fr}
+.grid.show-today-only .col-left > .card:not(:first-child),
+.grid.show-today-only .col-right > .card{
+  opacity:0;transform:translateY(8px);max-height:0;margin:0;padding:0 18px;pointer-events:none;overflow:hidden;
+}
+.grid.show-today-only .col-left > .card:first-child{opacity:1;transform:none;max-height:2000px;margin-bottom:16px;padding:18px}
+
+/* Missions: show the right column missions card and hide others with animation */
+.grid.show-missions-only{grid-template-columns:1fr}
+.grid.show-missions-only .col-left > .card,
+.grid.show-missions-only .col-right > .card{opacity:0;transform:translateY(8px);max-height:0;margin:0;padding:0 18px;pointer-events:none;overflow:hidden}
+.grid.show-missions-only .col-right > .card:first-child{opacity:1;transform:none;max-height:2000px;padding:18px;margin-bottom:16px}
+
+/* Timeline / TimeSlices: show the calendar/timeline card in right column */
+.grid.show-timeline-only{grid-template-columns:1fr}
+.grid.show-timeline-only .col-left > .card,
+.grid.show-timeline-only .col-right > .card{opacity:0;transform:translateY(8px);max-height:0;margin:0;padding:0 18px;pointer-events:none;overflow:hidden}
+.grid.show-timeline-only .col-right > .card:nth-child(2){opacity:1;transform:none;max-height:2000px;padding:18px;margin-bottom:16px}
+
+/* Analytics: surface the analytics card in the right column */
+.grid.show-analytics-only{grid-template-columns:1fr}
+.grid.show-analytics-only .col-left > .card,
+.grid.show-analytics-only .col-right > .card{opacity:0;transform:translateY(8px);max-height:0;margin:0;padding:0 18px;pointer-events:none;overflow:hidden}
+.grid.show-analytics-only .col-right > .card:nth-child(3){opacity:1;transform:none;max-height:2000px;padding:18px;margin-bottom:16px}
+
+/* Focus: surface the Focus Mode card (left column second card) */
+.grid.show-focus-only{grid-template-columns:1fr}
+.grid.show-focus-only .col-right > .card,
+.grid.show-focus-only .col-left > .card{opacity:0;transform:translateY(8px);max-height:0;margin:0;padding:0 18px;pointer-events:none;overflow:hidden}
+.grid.show-focus-only .col-left > .card:nth-child(2){opacity:1;transform:none;max-height:2000px;padding:18px;margin-bottom:16px}
+
+/* Scrolls: surface the Scrolls/Notes card (left column third card) */
+.grid.show-scrolls-only{grid-template-columns:1fr}
+.grid.show-scrolls-only .col-right > .card,
+.grid.show-scrolls-only .col-left > .card{opacity:0;transform:translateY(8px);max-height:0;margin:0;padding:0 18px;pointer-events:none;overflow:hidden}
+.grid.show-scrolls-only .col-left > .card:nth-child(3){opacity:1;transform:none;max-height:2000px;padding:18px;margin-bottom:16px}
+
+/* Summon Ken: hide dashboard cards and emphasize the full chat view (still animate hide) */
+.grid.show-summon-only{grid-template-columns:1fr}
+.grid.show-summon-only .col-left > .card,
+.grid.show-summon-only .col-right > .card{opacity:0;transform:translateY(8px);max-height:0;margin:0;padding:0 18px;pointer-events:none;overflow:hidden}
+
+/* Floating Summon modal styles */
+.summon-modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;transition:opacity .18s ease}
+.summon-modal.open{opacity:1;pointer-events:auto}
+.summon-overlay{position:absolute;inset:0;background:rgba(2,6,12,0.55)}
+.summon-card{position:relative;z-index:30;width:760px;max-width:94%;height:600px;border-radius:18px;background:linear-gradient(180deg,var(--card),var(--card-2));box-shadow:0 20px 60px rgba(2,8,23,0.6);overflow:hidden;display:flex;flex-direction:column}
+.summon-header{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid rgba(255,255,255,0.02)}
+.summon-left{display:flex;gap:12px;align-items:center}
+.summon-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(90deg,var(--accent-start),var(--accent-end));display:flex;align-items:center;justify-content:center;color:white;font-weight:800}
+.summon-name{font-weight:700}
+.summon-body{flex:1;overflow:auto;padding:18px}
+.summon-footer{display:flex;gap:12px;padding:14px;border-top:1px solid rgba(255,255,255,0.02);align-items:center}
+.summon-input{flex:1;padding:12px 14px;border-radius:20px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:var(--text);outline:none}
+.summon-send{width:44px;height:44px;border-radius:50%;background:linear-gradient(90deg,var(--accent-start),var(--accent-end));border:0;color:white;font-weight:800;cursor:pointer}
+.summon-close{background:transparent;border:0;color:var(--muted);font-size:18px;cursor:pointer}
+.summon-modal .chat-window{padding-bottom:18px;display:flex;flex-direction:column;gap:14px;}
+.summon-modal .chat-msg{max-width:72%;padding:12px 16px;border-radius:12px;background:rgba(255,255,255,0.03);color:var(--text)}
+.summon-modal .chat-msg.user{margin-left:auto;background:linear-gradient(90deg,#2f8cff,#6aa0ff);color:white}
+
+/* Summon status (spinner + elapsed) */
+.summon-status{display:flex;align-items:center;gap:10px;margin-right:8px;min-width:110px}
+.spinner{width:18px;height:18px;border-radius:50%;display:inline-block;border:2px solid rgba(255,255,255,0.08);border-top-color:var(--accent-start);animation:spin 1s linear infinite;opacity:0}
+.summon-elapsed{font-size:13px;color:var(--muted);opacity:0}
+.summon-status.active .spinner{opacity:1}
+.summon-status.active .summon-elapsed{opacity:1}
+
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+
+/* Accessibility & spacing helpers */
+a, button{outline-color:rgba(124,92,255,0.25)}

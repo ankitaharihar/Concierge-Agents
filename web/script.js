@@ -1,36 +1,44 @@
-function locomotive() {
-  gsap.registerPlugin(ScrollTrigger);
+// Wrap animation/scroll initialization in try/catch so failures don't stop other UI logic
+try{
+  function locomotive() {
+    if(!window.gsap || !window.ScrollTrigger || !window.LocomotiveScroll){
+      throw new Error('GSAP/ScrollTrigger/LocomotiveScroll not available');
+    }
+    gsap.registerPlugin(ScrollTrigger);
 
-  const locoScroll = new LocomotiveScroll({
-    el: document.querySelector("#main"),
-    smooth: true ,
-  });
-  locoScroll.on("scroll", ScrollTrigger.update);
+    const locoScroll = new LocomotiveScroll({
+      el: document.querySelector("#main"),
+      smooth: true ,
+    });
+    locoScroll.on("scroll", ScrollTrigger.update);
 
-  ScrollTrigger.scrollerProxy("#main", {
-    scrollTop(value) {
-      return arguments.length
-        ? locoScroll.scrollTo(value, 0, 0)
-        : locoScroll.scroll.instance.scroll.y;
-    },
+    ScrollTrigger.scrollerProxy("#main", {
+      scrollTop(value) {
+        return arguments.length
+          ? locoScroll.scrollTo(value, 0, 0)
+          : locoScroll.scroll.instance.scroll.y;
+      },
 
-    getBoundingClientRect() {
-      return {
-        top: 0,
-        left: 0,
-        width: window.innerWidth,
-        height: window.innerHeight,
-      };
-    },
+      getBoundingClientRect() {
+        return {
+          top: 0,
+          left: 0,
+          width: window.innerWidth,
+          height: window.innerHeight,
+        };
+      },
 
-    pinType: document.querySelector("#main").style.transform
-      ? "transform"
-      : "fixed",
-  });
-  ScrollTrigger.addEventListener("refresh", () => locoScroll.update());
-  ScrollTrigger.refresh();
+      pinType: document.querySelector("#main").style.transform
+        ? "transform"
+        : "fixed",
+    });
+    ScrollTrigger.addEventListener("refresh", () => locoScroll.update());
+    ScrollTrigger.refresh();
+  }
+  locomotive();
+}catch(animErr){
+  console.warn('Animation init failed — continuing without GSAP/ScrollTrigger/LocomotiveScroll', animErr);
 }
-locomotive();
 
   // Robot animation: float/rotate loop + entrance when #page1 is reached
   (function(){
@@ -397,19 +405,23 @@ for (let i = 0; i < frameCount; i++) {
   images.push(img);
 }
 
-gsap.to(imageSeq, {
-  frame: frameCount - 1,
-  snap: "frame",
-  ease: `none`,
-  scrollTrigger: {
-    scrub: 0.15,
-    trigger: `#page>canvas`,
-    start: `top top`,
-    end: `600% top`,
-    scroller: `#main`,
-  },
-  onUpdate: render,
-});
+if(window.gsap && typeof gsap.to === 'function' && window.ScrollTrigger){
+  gsap.to(imageSeq, {
+    frame: frameCount - 1,
+    snap: "frame",
+    ease: `none`,
+    scrollTrigger: {
+      scrub: 0.15,
+      trigger: `#page>canvas`,
+      start: `top top`,
+      end: `600% top`,
+      scroller: `#main`,
+    },
+    onUpdate: render,
+  });
+} else {
+  console.warn('Skipping image sequence animation because GSAP/ScrollTrigger not available');
+}
 
 images[1].onload = render;
 
@@ -437,41 +449,194 @@ function scaleImage(img, ctx) {
     img.height * ratio
   );
 }
-ScrollTrigger.create({
-  trigger: "#page>canvas",
-  pin: true,
-  // markers:true,
-  scroller: `#main`,
-  start: `top top`,
-  end: `600% top`,
-});
+if(window.gsap && typeof gsap.to === 'function' && window.ScrollTrigger){
+  try{
+    ScrollTrigger.create({
+      trigger: "#page>canvas",
+      pin: true,
+      // markers:true,
+      scroller: `#main`,
+      start: `top top`,
+      end: `600% top`,
+    });
 
+    gsap.to("#page1",{
+      scrollTrigger:{
+        trigger:`#page1`,
+        start:`top top`,
+        end:`bottom top`,
+        pin:true,
+        scroller:`#main`
+      }
+    })
+    gsap.to("#page2",{
+      scrollTrigger:{
+        trigger:`#page2`,
+        start:`top top`,
+        end:`bottom top`,
+        pin:true,
+        scroller:`#main`
+      }
+    })
+    gsap.to("#page3",{
+      scrollTrigger:{
+        trigger:`#page3`,
+        start:`top top`,
+        end:`bottom top`,
+        pin:true,
+        scroller:`#main`
+      }
+    })
+  }catch(err){
+    console.warn('GSAP/ScrollTrigger present but failed during setup', err);
+  }
+} else {
+  console.warn('Skipping ScrollTrigger/GSAP page pinning because GSAP/ScrollTrigger not available');
+}
 
+// Try Agent modal behavior
+(function(){
+  const tryBtn = document.getElementById('try-agent-left');
+  const modal = document.getElementById('agent-modal');
+  const overlay = modal && modal.querySelector('.agent-overlay');
+  const closeBtn = document.getElementById('agent-close');
+  const messagesList = document.getElementById('agent-messages');
+  const form = document.getElementById('agent-form');
+  const input = document.getElementById('agent-input');
 
-gsap.to("#page1",{
-  scrollTrigger:{
-    trigger:`#page1`,
-    start:`top top`,
-    end:`bottom top`,
-    pin:true,
-    scroller:`#main`
+  if(!tryBtn || !modal || !messagesList || !form || !input) return;
+
+  function openAgent(){
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden','false');
+    // clear previous messages
+    messagesList.innerHTML = '';
+    // add initial agent message
+    const agentMsg = document.createElement('li');
+    agentMsg.className = 'msg agent';
+    agentMsg.textContent = "What is today's task?";
+    messagesList.appendChild(agentMsg);
+    // scroll to bottom
+    setTimeout(()=> messagesList.parentElement.scrollTop = messagesList.parentElement.scrollHeight, 50);
+    input.focus();
   }
-})
-gsap.to("#page2",{
-  scrollTrigger:{
-    trigger:`#page2`,
-    start:`top top`,
-    end:`bottom top`,
-    pin:true,
-    scroller:`#main`
+
+  function closeAgent(){
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden','true');
   }
-})
-gsap.to("#page3",{
-  scrollTrigger:{
-    trigger:`#page3`,
-    start:`top top`,
-    end:`bottom top`,
-    pin:true,
-    scroller:`#main`
-  }
-})
+
+  tryBtn.addEventListener('click', (e)=>{ e.preventDefault(); openAgent(); });
+  closeBtn && closeBtn.addEventListener('click', closeAgent);
+  overlay && overlay.addEventListener('click', closeAgent);
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeAgent(); });
+
+  // If user just returned from login with a pending task, open the modal and prefill
+  try{
+    const pending = sessionStorage.getItem('pendingTask');
+    const logged = localStorage.getItem('loggedIn');
+    if(logged === 'true' && pending){
+      openAgent();
+      input.value = pending;
+      // clear pending state after restoring
+      sessionStorage.removeItem('pendingTask');
+      // focus input and place cursor at end
+      setTimeout(()=>{ input.focus(); input.setSelectionRange(input.value.length, input.value.length); },50);
+    }
+  }catch(err){/* ignore storage errors */}
+
+  // Handle user sending a reply (just adds to the chat view)
+  form.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    console.debug('agent form submit handler fired');
+    const text = input.value.trim();
+    if(!text) return;
+
+    // require login first: simple client-side check
+    try{
+      const logged = localStorage.getItem('loggedIn');
+      if(!logged || logged !== 'true'){
+        // remember pending task (optional)
+        try{ sessionStorage.setItem('pendingTask', text); }catch(ex){}
+        // redirect to local login page
+        window.location.href = 'login.html';
+        return;
+      }
+    }catch(err){
+      // if localStorage not available, still redirect
+      window.location.href = 'login.html';
+      return;
+    }
+    const userMsg = document.createElement('li');
+    userMsg.className = 'msg user';
+    userMsg.textContent = text;
+    messagesList.appendChild(userMsg);
+    input.value = '';
+    messagesList.parentElement.scrollTop = messagesList.parentElement.scrollHeight;
+
+    // Simulate a simple agent acknowledgement reply after a short timeout
+    setTimeout(()=>{
+      const ack = document.createElement('li');
+      ack.className = 'msg agent';
+      ack.textContent = `Got it — I'll remember: "${text}"`;
+      messagesList.appendChild(ack);
+      messagesList.parentElement.scrollTop = messagesList.parentElement.scrollHeight;
+    }, 700);
+  });
+
+  // Robust Send button handler: prefer form.requestSubmit(), otherwise dispatch a submit event
+  (function(){
+    try{
+      const sendBtn = document.querySelector('.agent-send');
+      if(sendBtn && form){
+        sendBtn.addEventListener('click', function(evt){
+          evt.preventDefault();
+          console.debug('Send button clicked — invoking form submit');
+          try{
+            if(typeof form.requestSubmit === 'function'){
+              form.requestSubmit();
+              return;
+            }
+            // dispatch a proper submit event that bubbles and is cancelable
+            const submitEvent = new Event('submit', {bubbles:true, cancelable:true});
+            const dispatched = form.dispatchEvent(submitEvent);
+            // if nothing handled it, fallback to native submit
+            setTimeout(()=>{
+              if(!submitEvent.defaultPrevented){
+                try{ form.submit(); }catch(e){ console.warn('form.submit fallback failed', e); }
+              }
+            }, 10);
+          }catch(ex){
+            console.warn('error during send click handler, attempting requestSubmit/submit', ex);
+            try{ if(typeof form.requestSubmit === 'function') form.requestSubmit(); else form.submit(); }catch(e){}
+          }
+        });
+      }
+      console.debug('agent send handler attached', !!sendBtn);
+    }catch(err){
+      console.warn('failed to attach send handler', err);
+    }
+  })();
+
+  // If an unauthenticated user starts typing, send them to login and preserve draft
+  try{
+    input.addEventListener('input', function onFirstType(e){
+      try{
+        const logged = localStorage.getItem('loggedIn');
+        if(!logged || logged !== 'true'){
+          // save current draft and redirect to login
+          try{ sessionStorage.setItem('pendingTask', e.target.value || ''); }catch(ex){}
+          // remove this listener to avoid repeated calls
+          input.removeEventListener('input', onFirstType);
+          window.location.href = 'login.html';
+        }
+      }catch(err){
+        // if localStorage inaccessible, still redirect
+        try{ sessionStorage.setItem('pendingTask', e.target.value || ''); }catch(ex){}
+        input.removeEventListener('input', onFirstType);
+        window.location.href = 'login.html';
+      }
+    }, {once:false});
+  }catch(err){/* ignore */}
+
+})();

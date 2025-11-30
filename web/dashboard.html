@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ChronoKen — Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Merriweather:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <div class="app">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">CK</div>
+        <div class="brand-text">
+          <div class="title">ChronoKen</div>
+          <div class="sub">Time-Slicing AI</div>
+        </div>
+      </div>
+
+      <nav class="menu">
+        <button class="menu-item active" data-view="dashboard"><span class="icon">⌂</span> Dashboard</button>
+        <button class="menu-item" data-view="missions"><span class="icon">🗂</span> Missions</button>
+        <button class="menu-item" data-view="timeslices"><span class="icon">🕒</span> Time Slices</button>
+        <button class="menu-item" data-view="timeline"><span class="icon">📅</span> Timeline</button>
+        <button class="menu-item" data-view="focus"><span class="icon">🎯</span> Focus Mode</button>
+        <button class="menu-item" data-view="scrolls"><span class="icon">📜</span> Scrolls</button>
+        <button class="menu-item" data-view="analytics"><span class="icon">📊</span> Analytics</button>
+        <button class="menu-item" data-view="summon"><span class="icon">⚔️</span> Summon Ken</button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="profile">
+          <img class="avatar" src="https://i.pravatar.cc/64?img=12" alt="avatar">
+          <div>
+            <div class="name">Ani</div>
+            <div class="muted">Level 5 • Time Adept</div>
+          </div>
+        </div>
+
+        <div class="small-cta">
+          <button id="addTaskFloating" class="btn small">+ New Mission</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+      <header class="topbar">
+        <div class="search">
+          <input id="globalSearch" placeholder="Search tasks, notes, plans..." />
+        </div>
+
+        <div class="top-actions">
+          <button id="themeBtn" class="btn ghost">Theme</button>
+          <button id="calendarSync" class="btn">Sync Calendar</button>
+          <button id="openSummon" class="btn primary">Open Ken</button>
+        </div>
+      </header>
+
+      <section id="view-dashboard" class="view active">
+        <div class="grid">
+          <!-- Left column -->
+          <div class="col col-left">
+            <div class="card">
+              <div class="card-head">
+                <h3>Today — Snapshot</h3>
+                <div class="muted">Quick actions</div>
+              </div>
+
+              <div class="today-grid">
+                <div class="today-tasks">
+                  <h4>Urgent Missions</h4>
+                  <ul id="todayTasks"></ul>
+                </div>
+
+                <div class="today-plan">
+                  <h4>Suggested Time Slices</h4>
+                  <div id="todayPlan"></div>
+                  <div class="plan-actions">
+                    <button id="addPlanToCalendar" class="btn">Add to Calendar</button>
+                    <button id="startFocusBtn" class="btn primary">Start Focus Mode</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <h3>Focus Mode</h3><div class="muted">Pomodoro & session stats</div>
+              </div>
+              <div class="focus-card">
+                <div id="timerDisplay" class="timer">25:00</div>
+                <div class="focus-controls">
+                  <button id="startTimer" class="btn primary">Start</button>
+                  <button id="pauseTimer" class="btn">Pause</button>
+                  <button id="resetTimer" class="btn ghost">Reset</button>
+                </div>
+                <div class="muted small">Session count: <span id="sessionCount">0</span></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <h3>Scrolls — Quick Notes</h3><div class="muted">Capture ideas, convert to missions</div>
+              </div>
+              <div class="notes">
+                <textarea id="quickNote" placeholder="Write a note..."></textarea>
+                <div class="note-actions">
+                  <button id="saveNote" class="btn">Save Note</button>
+                  <button id="noteToTask" class="btn ghost">Convert → Mission</button>
+                </div>
+                <ul id="notesList" class="notes-list"></ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right column -->
+          <div class="col col-right">
+            <div class="card">
+              <div class="card-head">
+                <h3>Missions</h3>
+                <div class="muted">Manage tasks & priorities</div>
+              </div>
+
+              <div class="missions-actions">
+                <input id="newTaskTitle" placeholder="New mission title..." />
+                <select id="newTaskPriority">
+                  <option value="high">High</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="low">Low</option>
+                </select>
+                <input id="newTaskHours" type="number" min="0.25" step="0.25" value="1" />
+                <button id="createTaskBtn" class="btn">Add Mission</button>
+              </div>
+
+              <ul id="missionsList" class="missions-list"></ul>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <h3>Timeline</h3><div class="muted">Calendar & class schedule</div>
+              </div>
+              <div class="calendar-placeholder">
+                <!-- Replace with Google Calendar iframe or calendar widget -->
+                <div class="muted">Calendar view placeholder — integrate Google Calendar here.</div>
+                <div class="small muted">Upcoming: <span id="nextEvent">No events</span></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <h3>Analytics</h3><div class="muted">Productivity at a glance</div>
+              </div>
+              <div class="analytics">
+                <div class="chart-row">
+                  <div class="mini-chart">
+                    <h4>Today Focus</h4>
+                    <div class="bar-wrap"><div id="focusBar" class="bar"></div></div>
+                    <div class="muted small">Time focused: <span id="timeFocused">0h</span></div>
+                  </div>
+
+                  <div class="mini-chart">
+                    <h4>Completion</h4>
+                    <div class="bar-wrap"><div id="completeBar" class="bar"></div></div>
+                    <div class="muted small">Completed: <span id="completePct">0%</span></div>
+                  </div>
+                </div>
+
+                <div class="muted small">ChronoKen Score: <strong id="ckScore">72</strong></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Other views placeholders -->
+      <section id="view-missions" class="view">
+        <div class="card full">
+          <div class="card-head"><h3>All Missions</h3><div class="muted">Filter & manage</div></div>
+          <div class="filter-row">
+            <input id="filterSearch" placeholder="Filter by title..." />
+            <select id="filterPriority">
+              <option value="">All priorities</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+            <button id="clearFilters" class="btn ghost">Clear</button>
+          </div>
+          <ul id="allMissions" class="missions-list"></ul>
+        </div>
+      </section>
+
+      <section id="view-timeslices" class="view">
+        <div class="card full">
+          <div class="card-head"><h3>Time Slices</h3><div class="muted">Generated plans</div></div>
+          <div id="plansContainer"></div>
+        </div>
+      </section>
+
+      <section id="view-timeline" class="view">
+        <div class="card full">
+          <div class="card-head"><h3>Timeline</h3><div class="muted">Calendar / classes</div></div>
+          <div class="muted">Calendar placeholder — integrate freebusy API to place slices into free slots.</div>
+        </div>
+      </section>
+
+      <section id="view-focus" class="view">
+        <div class="card full">
+          <div class="card-head"><h3>Focus Mode</h3><div class="muted">Start deep sessions</div></div>
+          <div class="focus-large">
+            <div id="bigTimer" class="timer large">25:00</div>
+            <div class="focus-controls">
+              <button id="bigStart" class="btn primary">Start Session</button>
+              <button id="bigPause" class="btn">Pause</button>
+              <button id="bigReset" class="btn ghost">Reset</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-scrolls" class="view">
+        <div class="card full">
+          <div class="card-head"><h3>Scrolls</h3><div class="muted">All notes</div></div>
+          <div id="allNotes" class="notes-list"></div>
+        </div>
+      </section>
+
+      <section id="view-analytics" class="view">
+        <div class="card full">
+          <div class="card-head"><h3>Analytics</h3><div class="muted">Detailed stats</div></div>
+          <div class="analytics-detailed">
+            <div class="muted">This area can hold charts, streak data and downloadable reports.</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-summon" class="view">
+        <div class="card full chat-card">
+          <div class="card-head"><h3>Summon Ken</h3><div class="muted">Chat with your agent</div></div>
+          <div id="chatWindow" class="chat-window"></div>
+          <div class="chat-input">
+            <input id="chatText" placeholder="Ask ChronoKen..." />
+            <button id="sendChat" class="btn primary">Send</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="dashboard.js"></script>
+
+  <!-- Summon Ken modal (floating chat) -->
+  <div id="summon-modal" class="summon-modal" aria-hidden="true">
+    <div class="summon-overlay"></div>
+    <div class="summon-card" role="dialog" aria-label="Ken chat">
+      <header class="summon-header">
+        <div class="summon-left">
+          <div class="summon-avatar">⚔️</div>
+          <div>
+            <div class="summon-name">Ken</div>
+            <div class="summon-sub muted">AI Agent Assistant</div>
+          </div>
+        </div>
+        <button id="summon-close" class="summon-close">✕</button>
+      </header>
+
+      <div class="summon-body">
+        <div id="summon-chat-window" class="chat-window"></div>
+      </div>
+
+      <footer class="summon-footer">
+        <div id="summon-status" class="summon-status" aria-hidden="true">
+          <span class="spinner" id="summon-spinner" aria-hidden="true"></span>
+          <span id="summon-elapsed" class="summon-elapsed" aria-hidden="true"></span>
+        </div>
+        <input id="summon-chat-input" class="summon-input" placeholder="Ask Ken anything..." />
+        <button id="summon-send" class="summon-send">✈</button>
+      </footer>
+    </div>
+  </div>
+</body>
+</html>
