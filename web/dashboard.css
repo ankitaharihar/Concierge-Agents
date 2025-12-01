@@ -87,6 +87,31 @@ body{
 .btn.primary:active{transform:translateY(1px)}
 .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)}
 
+/* Topbar 'login' pill style: emulate the black pill login button from screenshot */
+.topbar .top-actions .btn{
+  padding:10px 20px;
+  border-radius:22px;
+  background: linear-gradient(90deg, rgba(0,0,0,0.95), rgba(18,18,18,0.98));
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+  font-weight:800;
+  min-height:40px;
+}
+.topbar .top-actions .btn:hover{ transform: translateY(-1px); }
+.topbar .top-actions .btn:active{ transform: translateY(0); }
+
+/* If you want a single button to use this style, add class 'pill' to it and use this rule instead of overriding all topbar buttons */
+.btn.pill{
+  padding:10px 20px;
+  border-radius:22px;
+  background: linear-gradient(90deg, rgba(0,0,0,0.95), rgba(18,18,18,0.98));
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+  font-weight:800;
+}
+
 /* Main content */
 .main{flex:1;display:flex;flex-direction:column;padding:22px;overflow:auto}
 .topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}

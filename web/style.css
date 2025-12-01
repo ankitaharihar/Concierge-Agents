@@ -315,9 +315,21 @@ canvas{
     cursor: pointer;
     font-weight: 600;
 }
+
+/* Make Dashboard button match the pill-style Login button */
 #nav-actions .dashboard-btn{
-    background: linear-gradient(180deg,#000000,#080808);
+    padding: 10px 22px;
+    border-radius: 22px;
+    background: linear-gradient(90deg,#000000,#0f0f0f);
+    color: #fff;
+    border: none;
+    font-weight: 800;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.32);
+    transition: transform 160ms ease, box-shadow 160ms ease;
+    min-height: 40px;
 }
+#nav-actions .dashboard-btn:hover{ transform: translateY(-2px); box-shadow: 0 20px 44px rgba(0,0,0,0.36); }
+#nav-actions .dashboard-btn:active{ transform: translateY(0); }
 
 /* Style the login link to look like the dashboard button */
 #nav-actions a.nav-link,
