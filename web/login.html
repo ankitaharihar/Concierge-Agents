@@ -23,7 +23,7 @@
     <section class="auth-card-wrap">
       <div class="auth-card" id="authCard" data-state="login">
         <!-- Login side -->
-        <form class="form-panel panel-login" id="loginForm" autocomplete="on">
+        <form class="form-panel panel-login" id="loginForm" autocomplete="off">
           <div class="brandline">
             <div class="logo">CK</div>
             <div>
@@ -36,7 +36,7 @@
           <p class="muted">Sign in to access your missions & time-slices.</p>
 
           <div class="field">
-            <input id="loginEmail" type="email" required value="user@gmail.com" />
+            <input id="loginEmail" name="email" type="email" required autocomplete="off" placeholder="you@example.com" />
             <label for="loginEmail">Email</label>
           </div>
 
@@ -59,7 +59,7 @@
         </form>
 
         <!-- Signup side -->
-        <form class="form-panel panel-signup" id="signupForm" autocomplete="on">
+        <form class="form-panel panel-signup" id="signupForm" autocomplete="off">
           <div class="brandline">
             <div class="logo">CK</div>
             <div>
@@ -77,7 +77,7 @@
           </div>
 
           <div class="field">
-            <input id="signupEmail" type="email" required />
+            <input id="signupEmail" name="email" type="email" required autocomplete="off" placeholder="you@example.com" />
             <label for="signupEmail">Email</label>
           </div>
 

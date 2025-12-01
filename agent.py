@@ -235,15 +235,28 @@ def _call_llm(user_message: str, history: List[Dict[str, str]]) -> Dict[str, Any
 
 
 def handle_user_message(user_message: str, history: List[Dict[str, str]]) -> str:
+    # Delegate to structured processor and return assistant_message for backward compatibility
+    res = process_user_message(user_message, history)
+    return res.get('assistant_message', '')
+
+
+def process_user_message(user_message: str, history: List[Dict[str, str]]) -> Dict[str, Any]:
+    """Process a user message and return a structured result:
+    { action, params, assistant_message, plan? }
+    This executes actions (create_task, update_task_status, generate_plan) like
+    `handle_user_message` used to, but returns structured data useful for APIs.
+    """
     key = _history_to_key(user_message, history)
     cached = RESPONSE_CACHE.get(key)
     if cached is not None:
-        return cached
+        return {"action": "chat_only", "params": {}, "assistant_message": cached}
 
     llm_output = _call_llm(user_message, history)
     action = llm_output.get("action", "chat_only")
     params = llm_output.get("params", {}) or {}
     assistant_message = llm_output.get("assistant_message", "")
+
+    structured = {"action": action, "params": params, "assistant_message": assistant_message}
 
     if action == "create_task":
         task = create_task(
@@ -252,16 +265,18 @@ def handle_user_message(user_message: str, history: List[Dict[str, str]]) -> str
             estimated_hours=params.get("estimated_hours", 1),
             priority=params.get("priority", "medium"),
         )
-        assistant_message += f"\n\n[Task created with ID {task['id']}]"
+        structured["task"] = task
+        structured["assistant_message"] += f"\n\n[Task created with ID {task['id']}]"
 
     elif action == "list_tasks":
         tasks = list_tasks(status=params.get("status"))
+        structured["tasks"] = tasks
         if not tasks:
-            assistant_message += "\n\nYou currently have no tasks matching that filter."
+            structured["assistant_message"] += "\n\nYou currently have no tasks matching that filter."
         else:
-            assistant_message += "\n\nHere are your tasks:\n"
+            structured["assistant_message"] += "\n\nHere are your tasks:\n"
             for t in tasks:
-                assistant_message += (
+                structured["assistant_message"] += (
                     f"- ID {t['id']}: {t['title']} "
                     f"(deadline: {t['deadline']}, "
                     f"hours: {t['estimated_hours']}, "
@@ -274,32 +289,34 @@ def handle_user_message(user_message: str, history: List[Dict[str, str]]) -> str
             task_id=params.get("task_id"),
             new_status=params.get("new_status", "pending"),
         )
+        structured["updated"] = ok
         if ok:
-            assistant_message += "\n\n[Task status updated successfully.]"
+            structured["assistant_message"] += "\n\n[Task status updated successfully.]"
         else:
-            assistant_message += "\n\n[I couldn’t find that task ID. Please check and try again.]"
+            structured["assistant_message"] += "\n\n[I couldn’t find that task ID. Please check and try again.]"
 
     elif action == "generate_plan":
         daily_hours = params.get("daily_hours", 3)
         num_days = params.get("num_days", 7)
         plan = generate_plan(daily_hours=daily_hours, num_days=num_days)
+        structured["plan"] = plan
 
-        assistant_message += "\n\nHere’s your study plan:\n"
+        structured["assistant_message"] += "\n\nHere’s your study plan:\n"
         for date, slots in plan.items():
-            assistant_message += f"\n📅 {date}\n"
+            structured["assistant_message"] += f"\n📅 {date}\n"
             if not slots:
-                assistant_message += "  - No tasks scheduled.\n"
+                structured["assistant_message"] += "  - No tasks scheduled.\n"
                 continue
             for s in slots:
-                assistant_message += f"  - {s['title']} ({s['hours']} hours) [Task ID {s['task_id']}]\n"
+                structured["assistant_message"] += f"  - {s['title']} ({s['hours']} hours) [Task ID {s['task_id']}]\n"
 
-    # cache reply
+    # cache reply text for performance
     try:
-        RESPONSE_CACHE.set(key, assistant_message)
+        RESPONSE_CACHE.set(key, structured.get('assistant_message', ''))
     except Exception:
         pass
 
-    return assistant_message
+    return structured
 
 
 # Async & streaming helpers

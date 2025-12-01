@@ -1,0 +1,9 @@
+{
+  "user@gmail.com": {
+    "id": 1764553498464,
+    "email": "user@gmail.com",
+    "name": "Ak",
+    "password_hash": "scrypt:32768:8:1$UmEH1danSz5pQyQE$6c90f226bd1e6d484619b00c3eccc3f8c88891c65fd6fe004d11e59046e16defc92f3f1e8b093b7cf9cb8d4cd0ba3ffc2cf0b26d9894594a5f9f2732abc81df9",
+    "avatar": null
+  }
+}

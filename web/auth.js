@@ -74,31 +74,28 @@ document.addEventListener("DOMContentLoaded", () => {
       return alert('Please enter a valid email address');
     }
 
-    // simulate success: set demo logged-in flag
-    try{ localStorage.setItem('loggedIn','true'); }catch(ex){}
-
-    // send welcome email via backend (SendGrid) — fire-and-forget for demo
-    try{
-      fetch('/api/send_welcome', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({email: correctedEmail, name: ''})
-      }).catch(()=>{});
-    }catch(e){}
-
-    alert(`Welcome back, ${correctedEmail}!\n(Replace with real authentication call.)`);
-    // If there is a pending agent draft (Try Agent flow), return to the main page
-    // otherwise go to the dashboard page after login
-    try{
-      const pending = sessionStorage.getItem('pendingTask');
-      if(pending){
-        window.location.href = 'index.html';
-      } else {
-        window.location.href = 'dashboard.html';
+    // Call server login endpoint to authenticate and set session cookie
+    (async function(){
+      try{
+        const resp = await fetch('/api/login', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ email: correctedEmail, password: pass })
+        });
+        if(!resp.ok){
+          const data = await resp.json().catch(()=>({}));
+          throw new Error(data && data.error ? data.error : `login failed ${resp.status}`);
+        }
+        const data = await resp.json();
+        try{ localStorage.setItem('loggedIn','true'); localStorage.setItem('user', (data.user && data.user.email) || correctedEmail); }catch(ex){}
+        // Redirect based on pending draft
+        const pending = sessionStorage.getItem('pendingTask');
+        window.location.href = pending ? 'index.html' : 'dashboard.html';
+      }catch(err){
+        alert('Login failed: ' + (err.message || String(err)));
       }
-    }catch(e){
-      window.location.href = 'dashboard.html';
-    }
+    })();
   });
 
   document.getElementById("signupForm").addEventListener("submit", (e) => {
@@ -107,16 +104,27 @@ document.addEventListener("DOMContentLoaded", () => {
     const email = document.getElementById("signupEmail").value;
     const pass = document.getElementById("signupPass").value;
     if (!name || !email || !pass) return alert("Complete all fields");
-    // simulate account creation: call welcome endpoint then switch to login
-    try{
-      fetch('/api/send_welcome', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({email: email, name: name})
-      }).catch(()=>{});
-    }catch(e){}
-    alert("Account created! (Hook this to your backend to actually create user)");
-    card.setAttribute("data-state", "login");
+    // Call server signup endpoint to create user and set session
+    (async function(){
+      try{
+        const resp = await fetch('/api/signup', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ name: name, email: email, password: pass })
+        });
+        if(!resp.ok){
+          const data = await resp.json().catch(()=>({}));
+          throw new Error(data && data.error ? data.error : `signup failed ${resp.status}`);
+        }
+        const data = await resp.json();
+        try{ localStorage.setItem('loggedIn','true'); localStorage.setItem('user', (data.user && data.user.email) || email); }catch(ex){}
+        alert('Account created — you are now signed in.');
+        window.location.href = 'dashboard.html';
+      }catch(err){
+        alert('Signup failed: ' + (err.message || String(err)));
+      }
+    })();
   });
 
   // small keyboard accessibility: Esc returns to login

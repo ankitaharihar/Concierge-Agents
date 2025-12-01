@@ -545,28 +545,68 @@ if(window.gsap && typeof gsap.to === 'function' && window.ScrollTrigger){
     }
   }catch(err){/* ignore storage errors */}
 
-  // Handle user sending a reply (just adds to the chat view)
+  // Handle user sending a reply (adds to the chat view). If the user is not
+  // authenticated we show an agent instruction first, then redirect to login.
   form.addEventListener('submit', (e)=>{
     e.preventDefault();
     console.debug('agent form submit handler fired');
     const text = input.value.trim();
     if(!text) return;
 
-    // require login first: simple client-side check
-    try{
-      const logged = localStorage.getItem('loggedIn');
-      if(!logged || logged !== 'true'){
-        // remember pending task (optional)
-        try{ sessionStorage.setItem('pendingTask', text); }catch(ex){}
-        // redirect to local login page
-        window.location.href = 'login.html';
+    // client-side login check
+    let logged = false;
+    try{ logged = (localStorage.getItem('loggedIn') === 'true'); }catch(err){ logged = false; }
+
+    // remember the pending task so it can be restored after login
+    try{ sessionStorage.setItem('pendingTask', text); }catch(ex){}
+
+    // if not logged in, only force login+redirect for plan-generation requests
+    if(!logged){
+      const lower = text.toLowerCase();
+      const wantsPlan = /\bgenerate\b.*\bplan\b|\bplan\b.*\bgenerate\b|\bgenerate plan\b/.test(lower);
+
+      if(wantsPlan){
+        const userMsg = document.createElement('li');
+        userMsg.className = 'msg user';
+        userMsg.textContent = text;
+        messagesList.appendChild(userMsg);
+        input.value = '';
+        messagesList.parentElement.scrollTop = messagesList.parentElement.scrollHeight;
+
+        // Agent instruction before redirect
+        setTimeout(()=>{
+          const agentMsg = document.createElement('li');
+          agentMsg.className = 'msg agent';
+          agentMsg.textContent = "First, please sign in to our website so I can generate a plan for you — redirecting to login...";
+          messagesList.appendChild(agentMsg);
+          messagesList.parentElement.scrollTop = messagesList.parentElement.scrollHeight;
+        }, 200);
+
+        // Redirect shortly after showing the message so user sees it
+        setTimeout(()=>{ window.location.href = 'login.html'; }, 1200);
         return;
       }
-    }catch(err){
-      // if localStorage not available, still redirect
-      window.location.href = 'login.html';
+
+      // For other non-plan messages, just save draft and acknowledge without redirect
+      const userMsg = document.createElement('li');
+      userMsg.className = 'msg user';
+      userMsg.textContent = text;
+      messagesList.appendChild(userMsg);
+      input.value = '';
+      messagesList.parentElement.scrollTop = messagesList.parentElement.scrollHeight;
+
+      setTimeout(()=>{
+        const ack = document.createElement('li');
+        ack.className = 'msg agent';
+        ack.textContent = `Got it — I'll remember: "${text}"`;
+        messagesList.appendChild(ack);
+        messagesList.parentElement.scrollTop = messagesList.parentElement.scrollHeight;
+      }, 700);
+
       return;
     }
+
+    // User is logged in — append user's message and call the backend for a reply
     const userMsg = document.createElement('li');
     userMsg.className = 'msg user';
     userMsg.textContent = text;
@@ -574,14 +614,54 @@ if(window.gsap && typeof gsap.to === 'function' && window.ScrollTrigger){
     input.value = '';
     messagesList.parentElement.scrollTop = messagesList.parentElement.scrollHeight;
 
-    // Simulate a simple agent acknowledgement reply after a short timeout
-    setTimeout(()=>{
-      const ack = document.createElement('li');
-      ack.className = 'msg agent';
-      ack.textContent = `Got it — I'll remember: "${text}"`;
-      messagesList.appendChild(ack);
-      messagesList.parentElement.scrollTop = messagesList.parentElement.scrollHeight;
-    }, 700);
+    // Show a temporary typing indicator
+    const typing = document.createElement('li');
+    typing.className = 'msg agent typing';
+    typing.textContent = '…';
+    messagesList.appendChild(typing);
+    messagesList.parentElement.scrollTop = messagesList.parentElement.scrollHeight;
+
+    // Call backend `/api/message` for a real agent reply
+    (async function(){
+      try{
+        const resp = await fetch('/api/message', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ message: text, history: [] })
+        });
+        if(!resp.ok){
+          throw new Error(`Server returned ${resp.status}`);
+        }
+        const body = await resp.json();
+        const replyText = body.reply || body.assistant_message || body.message || 'Sorry, no reply.';
+        try{ typing.remove(); }catch(e){}
+        const ack = document.createElement('li');
+        ack.className = 'msg agent';
+        ack.textContent = replyText;
+        messagesList.appendChild(ack);
+        messagesList.parentElement.scrollTop = messagesList.parentElement.scrollHeight;
+
+        // If user is logged in, also save this chat as a task in the user's dashboard
+        try{
+          const userId = (localStorage.getItem('user') || localStorage.getItem('userId') || 'me');
+          fetch('/api/tasks', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ user: userId, title: text, detail: replyText, priority: 'medium', hours: 1 })
+          }).then(r=>r.json()).then(j=>{
+            console.debug('task saved', j);
+          }).catch(err=>console.warn('task save failed', err));
+        }catch(err){ console.warn('task save error', err); }
+      }catch(err){
+        try{ typing.remove(); }catch(e){}
+        const errMsg = document.createElement('li');
+        errMsg.className = 'msg agent';
+        errMsg.textContent = 'Agent error: ' + (err.message || String(err));
+        messagesList.appendChild(errMsg);
+        messagesList.parentElement.scrollTop = messagesList.parentElement.scrollHeight;
+        console.error('agent fetch error', err);
+      }
+    })();
   });
 
   // Robust Send button handler: prefer form.requestSubmit(), otherwise dispatch a submit event
@@ -618,25 +698,12 @@ if(window.gsap && typeof gsap.to === 'function' && window.ScrollTrigger){
     }
   })();
 
-  // If an unauthenticated user starts typing, send them to login and preserve draft
+  // If an unauthenticated user types, just preserve the draft but do NOT
+  // automatically redirect — we will prompt and redirect on submit instead.
   try{
     input.addEventListener('input', function onFirstType(e){
-      try{
-        const logged = localStorage.getItem('loggedIn');
-        if(!logged || logged !== 'true'){
-          // save current draft and redirect to login
-          try{ sessionStorage.setItem('pendingTask', e.target.value || ''); }catch(ex){}
-          // remove this listener to avoid repeated calls
-          input.removeEventListener('input', onFirstType);
-          window.location.href = 'login.html';
-        }
-      }catch(err){
-        // if localStorage inaccessible, still redirect
-        try{ sessionStorage.setItem('pendingTask', e.target.value || ''); }catch(ex){}
-        input.removeEventListener('input', onFirstType);
-        window.location.href = 'login.html';
-      }
-    }, {once:false});
+      try{ sessionStorage.setItem('pendingTask', e.target.value || ''); }catch(ex){}
+    });
   }catch(err){/* ignore */}
 
 })();
